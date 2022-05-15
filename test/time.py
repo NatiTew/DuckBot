@@ -5,26 +5,65 @@ from config import *
 import pyodbc
 import os
 import random
+from datetime import datetime
 
 directory = os.getcwd()
-directory = directory + '\DB.accdb'
+directory = directory + '\DB_Bid.accdb'
 conn = pyodbc.connect(r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=%s' %directory)
 cursor = conn.cursor()
 
 client = commands.Bot(command_prefix="-")
 
-player1 = ""
-player2 = ""
-turn = ""
-gameOver = True
-board = []
-
-statusS = [[4, 1000, 100], [5, 1200, 150], [6, 1400, 200], [7, 1600, 250], [8, 1800, 300], [9, 2000, 350], [10, 2500, 500]]
+bidStatus = True
+max = 2.0
 
 @client.command()
-async def hello(ctx):
-    print("Hello")
-    await ctx.send("World!")
+async def bid(ctx):
+    global bidStatus
+    global max
+    max = max+0.2
+    # date
+    # max = max + 0.2
+    now = datetime.now()
+    formatted_date = now.strftime('%Y-%m-%d %H:%M:%S')
+    print(formatted_date)
+    print(str(ctx.author.id))
+    id = str(ctx.author.id)
+    print(max)
+    if bidStatus == False:
+        await ctx.send("การประมูลยังไม่ได้เริ่ม หรือสิ้นสุดแล้ว")
+    else:
+        cursor.execute("insert into history (ID_Dis, Price, TD) values('%s', '%.2f', '%s')" % (id, max, formatted_date))
+        conn.commit()
+        embed = discord.Embed(title=f"{' <Alert Auction>'}",
+                              description=('everyone สมาชิก <@' + str(ctx.author.id) + '> ได้ทำการประมูล'),
+                              color=discord.Color.dark_red())
+        embed.add_field(name="เวลา", value=f"{formatted_date}")
+        embed.add_field(name="ชื่อ", value=f"{'<@' + str(ctx.author.id) + '>'}")
+        embed.add_field(name="ราคาประมูล", value=f"{'%.2f Near'}"%max)
+        # embed.set_thumbnail(url=f"{ctx.guild.icon}")
+        # url = row.URL
+        # print(url)
+        # embed.set_image(url=url)
+        await ctx.send(embed=embed)
+    # elif input < max:
+    #     await ctx.send("สมาชิก/Member <@" + id + "> คุณลงราคาต่ำกว่าราคาขั้นต่ำในการบิด  / Price Below the minimum bid price.")
+    # else:
+    #     await ctx.send("Error โปรดลงราคาใหม่")
+
+
+@client.command()
+async def startBid(ctx):
+    global bidStatus
+    if int(ctx.author.id) == AEP_ID:
+        bidStatus = True
+        await ctx.send("เริ่มBid / Start Bid")
+@client.command()
+async def endBid(ctx):
+    global bidStatus
+    if int(ctx.author.id) == AEP_ID:
+        bidStatus = False
+        await ctx.send("สิ้นสุดBid / End Bid")
 
 
 @client.command()
@@ -137,21 +176,21 @@ async def arena(ctx, player1: discord.Member, player2: discord.Member):
 
 @client.command()
 async def setAdmin(ctx, player: discord.Member):
+    nameDis = ' '
+    cursor.execute("SELECT * FROM player WHERE NameDis = '%s'" % player)
+    for row in cursor.fetchall():
+        nameDis = row.NameDis
+
+    if nameDis == ' ':
+        cursor.execute("INSERT INTO player (NameDis, ID_DIS, Admin) VALUES('%s', '%s', True )" % (player, player.id))
+        conn.commit()
+    else:
+        cursor.execute("UPDATE player SET Admin = True WHERE ID_DIS = '%s' " % str(player.id))
+        conn.commit()
+
     if int(ctx.author.id) == AEP_ID:
         await ctx.send("Set Admin already \n"
                        "ลงทะเบียนแอดมินเรียบร้อย")
-        nameDis = ' '
-        cursor.execute("SELECT * FROM player WHERE NameDis = '%s'" % player)
-        for row in cursor.fetchall():
-            nameDis = row.NameDis
-
-        if nameDis == ' ':
-            cursor.execute(
-                "INSERT INTO player (NameDis, ID_DIS, Admin) VALUES('%s', '%s', True )" % (player, player.id))
-            conn.commit()
-        else:
-            cursor.execute("UPDATE player SET Admin = True WHERE ID_DIS = '%s' " % str(player.id))
-            conn.commit()
     else:
         await ctx.send("You can't set Admin \n"
                        "คุณไม่สามารถใช้คำสั่งนี้ได้")

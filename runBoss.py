@@ -370,7 +370,7 @@ async def sWar(ctx, num: int):
     cursor.execute("SELECT * FROM Boss where ID = %d" % num)
     for row in cursor.fetchall():
         realHP = row.HP
-    cursor.execute("SELECT * FROM WarBoss where ID = %d" %num)
+    cursor.execute("SELECT * FROM WarBoss where ID = %d" %num)alert
     for row in cursor.fetchall():
         embed = discord.Embed(title=f"{str(row.Name) + ' <War Status>'}", description=('Unit ID: '+row.Unit_ID), color=discord.Color.blue())
         embed.add_field(name="เลือด", value=f"{int(row.HP)}")
