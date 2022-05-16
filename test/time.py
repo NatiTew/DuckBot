@@ -15,42 +15,55 @@ cursor = conn.cursor()
 client = commands.Bot(command_prefix="-")
 
 bidStatus = True
-max = 2.0
+max = 2.5
 
 @client.command()
 async def bid(ctx):
     global bidStatus
     global max
+    idDis = ctx.author.id
     max = max+0.2
     # date
     # max = max + 0.2
     now = datetime.now()
     formatted_date = now.strftime('%Y-%m-%d %H:%M:%S')
-    print(formatted_date)
-    print(str(ctx.author.id))
-    id = str(ctx.author.id)
-    print(max)
-    if bidStatus == False:
-        await ctx.send("การประมูลยังไม่ได้เริ่ม หรือสิ้นสุดแล้ว")
+    testnow = "21:30"
+    formatted_time = now.strftime('%H:%M')
+    if formatted_time >= testnow:
+        bidStatus = False
+        print(bidStatus)
+        print(formatted_time)
     else:
-        cursor.execute("insert into history (ID_Dis, Price, TD) values('%s', '%.2f', '%s')" % (id, max, formatted_date))
-        conn.commit()
-        embed = discord.Embed(title=f"{' <Alert Auction>'}",
-                              description=('everyone สมาชิก <@' + str(ctx.author.id) + '> ได้ทำการประมูล'),
-                              color=discord.Color.dark_red())
-        embed.add_field(name="เวลา", value=f"{formatted_date}")
-        embed.add_field(name="ชื่อ", value=f"{'<@' + str(ctx.author.id) + '>'}")
-        embed.add_field(name="ราคาประมูล", value=f"{'%.2f Near'}"%max)
-        # embed.set_thumbnail(url=f"{ctx.guild.icon}")
-        # url = row.URL
-        # print(url)
-        # embed.set_image(url=url)
-        await ctx.send(embed=embed)
-    # elif input < max:
-    #     await ctx.send("สมาชิก/Member <@" + id + "> คุณลงราคาต่ำกว่าราคาขั้นต่ำในการบิด  / Price Below the minimum bid price.")
-    # else:
-    #     await ctx.send("Error โปรดลงราคาใหม่")
-
+        # print(bidStatus)
+        # print(formatted_date)
+        # print(str(ctx.author.id))
+        id = str(ctx.author.id)
+        # print(max)
+        if bidStatus == False:
+            await ctx.send('<@' + str(ctx.author.id) + '>การประมูลยังไม่ได้เริ่ม หรือสิ้นสุดแล้ว')
+        else:
+            # await ctx.send('<@' + str(ctx.author.id) + '>บิทที่ราคา %.2f Near' %max)
+            # async for message in ctx.channel.history(limit=2):
+            #     await message.delete()
+            # cursor.execute(
+            #     "insert into history (ID_Dis, Price, TD) values('%s', '%.2f', '%s')" % (id, max, formatted_date))
+            # conn.commit()
+            embed = discord.Embed(title=f"{' <Alert Auction>'}",
+                                  description=('everyone สมาชิก <@' + str(idDis) + '> ได้ทำการประมูล'),
+                                  color=discord.Color.dark_red())
+            embed.add_field(name="เวลา", value=f"{formatted_date}")
+            embed.add_field(name="ชื่อ", value=f"{'<@' + str(idDis) + '>'}")
+            embed.add_field(name="ราคาประมูล", value=f"{'%.2f Near'}" % max)
+            embed.add_field(name="หมดเวลาประมูล", value=f"{'21:30 น. GMT+7'}")
+            # embed.set_thumbnail(url=f"{ctx.guild.icon}")
+            # url = row.URL
+            # print(url)
+            # embed.set_image(url='https://cdn.discordapp.com/attachments/952899098791534632/975360701973549086/IMG_3226.gif')
+            await ctx.send(embed=embed)
+        # elif input < max:
+        #     await ctx.send("สมาชิก/Member <@" + id + "> คุณลงราคาต่ำกว่าราคาขั้นต่ำในการบิด  / Price Below the minimum bid price.")
+        # else:
+        #     await ctx.send("Error โปรดลงราคาใหม่")
 
 @client.command()
 async def startBid(ctx):
@@ -208,8 +221,8 @@ async def setCard(ctx):
         await ctx.send(row.NameDis)
 
 @client.command()
-async def getmsg(ctx, msgID: int):
-    msg = await ctx.fetch_message(msgID)
+async def hello(ctx):
+    await ctx.send('เผางาน <@952814969097957377>')
 
 @arena.error
 async def arena_error(ctx, error):
