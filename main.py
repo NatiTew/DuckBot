@@ -13,20 +13,26 @@ cursor = conn.cursor()
 
 client = commands.Bot(command_prefix="-")
 
-player1 = ""
-player2 = ""
+idPlayer1 = ""
+idPlayer2 = ""
 turn = ""
-gameOver = True
+gameOver = False
 board = []
-maxCard = 4
+maxCard = 1
+game = False
 
 statusS = [[4, 1000, 100], [5, 1200, 150], [6, 1400, 200], [7, 1600, 250], [8, 1800, 300], [9, 2000, 350], [10, 2500, 500]]
+
+def isAdmin(input:str):
+    cursor.execute("SELECT * FROM player WHERE Admin = True AND ID_Dis = '%s' " %input)
+    for row in cursor.fetchall():
+        return True
+    return False
 
 @client.command()
 async def hello(ctx):
     print("Hello")
-    await ctx.send("ดิสอะไรน่าเผาจัง")
-
+    await ctx.send("บอทก็เห็นด้วย")
 
 @client.command()
 async def show(ctx, input:str):
@@ -91,46 +97,263 @@ async def showAll(ctx):
         count += 1
 
 @client.command()
+async def showBattle(ctx):
+    idDis = str(idPlayer1)
+    print(idDis)
+    cursor.execute("SELECT * FROM cardPlayer where ID_Dis = '%s' AND Battle = True" % idDis)
+    for row in cursor.fetchall():
+        card = row.ID_Card
+        url = ''
+        cursor.execute("SELECT * FROM card where CardID = '%s'" % card)
+        for col in cursor.fetchall():
+            url = col.URL
+        embed = discord.Embed(title=f"{'Battle List Player1 '}", description=('ข้อมูลสงครามของ <@' + idDis + '>'), color=discord.Color.red())
+        embed.add_field(name='ID Card', value=f"{':id: ' + str(row.ID_Card)}")
+        embed.add_field(name='HP', value=f"{':heart: ' + str(row.HP)}")
+        embed.add_field(name='Attack', value=f"{':crossed_swords: ' + str(row.Att)}")
+        # url = row.URL
+        # print(url)
+        embed.set_image(url=url)
+        await ctx.send(embed=embed)
+
+    idDis = str(idPlayer2)
+    print(idDis)
+    cursor.execute("SELECT * FROM cardPlayer where ID_Dis = '%s' AND Battle = True" % idDis)
+    for row in cursor.fetchall():
+        card = row.ID_Card
+        url = ''
+        cursor.execute("SELECT * FROM card where CardID = '%s'" % card)
+        for col in cursor.fetchall():
+            url = col.URL
+        embed = discord.Embed(title=f"{'Battle List Player2 '}", description=('ข้อมูลสงครามของ <@' + idDis + '>'),
+                              color=discord.Color.red())
+        embed.add_field(name='ID Card', value=f"{':id: ' + str(row.ID_Card)}")
+        embed.add_field(name='HP', value=f"{':heart: ' + str(row.HP)}")
+        embed.add_field(name='Attack', value=f"{':crossed_swords: ' + str(row.Att)}")
+        # url = row.URL
+        # print(url)
+        embed.set_image(url=url)
+        await ctx.send(embed=embed)
+
+@client.command()
+async def choose(ctx):
+    global turn
+    global game
+    global board
+    idDis = str(ctx.author.id)
+    print(idDis)
+    print(turn)
+    print(gameOver)
+    if gameOver == True:
+        print('not start')
+    elif maxCard == 0:
+        print('ยังไม่ได้เซ็ทจำนวนการ์ด')
+    elif idDis == turn:
+        game = True
+        board = [":busts_in_silhouette:", ":vs:", ":robot:",
+        ":white_large_square:", ":black_large_square:", ":white_large_square:"]
+
+        # print the board
+        line = ""
+        for x in range(len(board)):
+            if x == 2 or x == 5 or x == 8:
+                line += " " + board[x]
+                await ctx.send(line)
+                line = ""
+            else:
+                line += " " + board[x]
+        await ctx.send("เป๋ายิงฉุบเพื่อโจมตี rock–paper–scissors \n"
+                       "เลือกค้อนพิมพ์ -att r \n"
+                       "เลือกกรรไกรพิมพ์ -att s \n"
+                       "เลือกกระดาษพิมพ์ -att p")
+    else:
+        await ctx.send("ไม่ใช่ตาของคุณ")
+        print('no')
+
+@client.command()
+async def att(ctx, choice:str):
+    global board
+    markBot = ' '
+    mark = ' '
+    mylist = ["rock", "paper", "scissors"]
+    my = random.choice(mylist)
+    print(my)
+    await ctx.send("บอทเลือก " + my)
+    if my == 'rock':
+        markBot = ':punch:'
+    elif my == 'paper':
+        markBot = ':hand_splayed:'
+    else:
+        markBot = ':v:'
+    idDis = str(ctx.author.id)
+    if game == True and turn == idDis and gameOver == False:
+        if choice == 'r':
+            mark = ':punch:'
+        elif choice == 'p':
+            mark = ':hand_splayed:'
+        elif choice == 's':
+            mark = ':v:'
+
+        board[3] = mark
+        board[5] = markBot
+
+        # print the board
+        line = ""
+        for x in range(len(board)):
+            if x == 2 or x == 5 or x == 8:
+                line += " " + board[x]
+                await ctx.send(line)
+                line = ""
+            else:
+                line += " " + board[x]
+
+@client.command()
+async def hp(ctx, damage: int):
+    global turn
+    global gameOver
+    idDis = str(ctx.author.id)
+    target = ''
+    if gameOver == True:
+        print("Game over already")
+    elif idDis == turn:
+        if idDis == idPlayer1:
+            target = idPlayer2
+            hp = 999999
+            cursor.execute("SELECT * FROM cardPlayer where ID_Dis = '%s' AND Battle = True" % str(target))
+            for row in cursor.fetchall():
+                hp = row.HP
+            hp = hp - damage
+            if hp <= 0:
+                print("End Game")
+                cursor.execute("UPDATE cardPlayer SET HP = %d WHERE ID_DIS = '%s' " % (hp, str(target)))
+                conn.commit()
+                gameOver = True
+            else:
+                cursor.execute("UPDATE cardPlayer SET HP = %d WHERE ID_DIS = '%s' " % (hp, str(target)))
+                conn.commit()
+                turn = target
+        elif idDis == idPlayer2:
+            target = idPlayer1
+            hp = 999999
+            cursor.execute("SELECT * FROM cardPlayer where ID_Dis = '%s' AND Battle = True" % str(target))
+            for row in cursor.fetchall():
+                hp = row.HP
+            hp = hp - damage
+            if hp <= 0:
+                print("End Game")
+                cursor.execute("UPDATE cardPlayer SET HP = %d WHERE ID_DIS = '%s' " % (hp, str(target)))
+                conn.commit()
+                gameOver = True
+            else:
+                cursor.execute("UPDATE cardPlayer SET HP = %d WHERE ID_DIS = '%s' " % (hp, str(target)))
+                conn.commit()
+                turn = target
+        else:
+            print("มีบ้างอย่างผิดพลาด")
+
+        cursor.execute("SELECT * FROM cardPlayer where ID_Dis = '%s' AND Battle = True" % target)
+        for row in cursor.fetchall():
+            card = row.ID_Card
+            url = ''
+            cursor.execute("SELECT * FROM card where CardID = '%s'" % card)
+            for col in cursor.fetchall():
+                url = col.URL
+            embed = discord.Embed(title=f"{'Battle Report '}", description=('ข้อมูลสงครามของ <@' + target + '>'),
+                                  color=discord.Color.red())
+            embed.add_field(name='ID Card', value=f"{':id: ' + str(row.ID_Card)}")
+            embed.add_field(name='HP', value=f"{':heart: ' + str(row.HP)}")
+            embed.add_field(name='Attack', value=f"{':crossed_swords: ' + str(row.Att)}")
+            # url = row.URL
+            # print(url)
+            embed.set_image(url=url)
+            await ctx.send(embed=embed)
+    else:
+        print("ไม่ใช่ตาของคุณ")
+
+@client.command()
 async def arena(ctx, player1: discord.Member, player2: discord.Member):
     global idPlayer1
     global idPlayer2
     global turn
     global gameOver
+    global game
 
     if gameOver == False:
-        # global board
-        # board = [":busts_in_silhouette:", ":vs:", ":robot:",
-        # ":white_large_square:", ":black_large_square:", ":white_large_square:"]
-
         idPlayer1 = str(player1.id)
         idPlayer2 = str(player2.id)
         turn = ""
-        gameOver = True
+        game = False
+        soul1 = 0
+        soul2 = 0
+        hp1 = 0
+        hp2 = 0
+        cursor.execute("SELECT * FROM cardPlayer where ID_Dis = '%s' AND Battle = True" % idPlayer1)
+        for row in cursor.fetchall():
+            card = row.ID_Card
+            url = ''
+            cursor.execute("SELECT * FROM card where CardID = '%s'" % card)
+            for col in cursor.fetchall():
+                url = col.URL
+                soul1 = col.Soul
+                print(soul1)
+                i = 0
+            while i < len(statusS):
+                if soul1 == statusS[i][0]:
+                    hp1 = statusS[i][1]
+                    print(hp1)
+                i += 1
+            embed = discord.Embed(title=f"{'Battle List Player1 '}", description=('ข้อมูลสงครามของ <@' + idPlayer1 + '>'),
+                                  color=discord.Color.red())
+            embed.add_field(name='ID Card', value=f"{':id: ' + str(row.ID_Card)}")
+            embed.add_field(name='HP', value=f"{':heart: ' + str(hp1)}")
+            embed.add_field(name='Attack', value=f"{':crossed_swords: ' + str(row.Att)}")
+            # url = row.URL
+            # print(url)
+            embed.set_image(url=url)
+            await ctx.send(embed=embed)
 
+        cursor.execute("SELECT * FROM cardPlayer where ID_Dis = '%s' AND Battle = True" % idPlayer2)
+        for row in cursor.fetchall():
+            card = row.ID_Card
+            url = ''
+            cursor.execute("SELECT * FROM card where CardID = '%s'" % card)
+            for col in cursor.fetchall():
+                url = col.URL
+                soul2 = col.Soul
+                print(soul1)
+                i = 0
+            while i < len(statusS):
+                if soul2 == statusS[i][0]:
+                    hp2 = statusS[i][1]
+                    print(hp2)
+                i += 1
+            embed = discord.Embed(title=f"{'Battle List Player1 '}", description=('ข้อมูลสงครามของ <@' + idPlayer1 + '>'),
+                                  color=discord.Color.red())
+            embed.add_field(name='ID Card', value=f"{':id: ' + str(row.ID_Card)}")
+            embed.add_field(name='HP', value=f"{':heart: ' + str(hp2)}")
+            embed.add_field(name='Attack', value=f"{':crossed_swords: ' + str(row.Att)}")
+            # url = row.URL
+            # print(url)
+            embed.set_image(url=url)
+            await ctx.send(embed=embed)
+
+        cursor.execute("UPDATE cardPlayer SET HP = %d WHERE ID_DIS = '%s' " % (hp1, str(idPlayer1)))
+        conn.commit()
+        cursor.execute("UPDATE cardPlayer SET HP = %d WHERE ID_DIS = '%s' " % (hp2, str(idPlayer2)))
+        conn.commit()
         await ctx.send("----- Welcome to YOKEiPTO Land -----\n"
-                    "------------ System ready ------------")
-
-        await ctx.send("Player1 is <@" + idPlayer1 + "> is ready!!! \n"
-                       "Player2 is <@" + idPlayer2 + "> is ready!!!")
+                    "------------ System ready ------------\n"
+                    "Player1 is <@" + idPlayer1 + "> is ready!!! \n"
+                    "Player2 is <@" + idPlayer2 + "> is ready!!!")
 
         # determine who goes first
         num = random.randint(1, 2)
         if num == 1:
-            turn = player1
+            turn = str(player1.id)
             await ctx.send("It is <@" + idPlayer1 + ">'s turn.")
         elif num == 2:
-            turn = player2
+            turn = str(player2.id)
             await ctx.send("It is <@" + idPlayer2 + ">'s turn.")
-
-        # print the board
-        # line = ""
-        # for x in range(len(board)):
-        #     if x == 2 or x == 5 or x == 8:
-        #         line += " " + board[x]
-        #         await ctx.send(line)
-        #         line = ""
-        #     else:
-        #         line += " " + board[x]
     else:
         await ctx.send("A game is already in progress! Finish it before starting a new one."
                        "ขณะนี้เกมส์กำลังเริ่มอยู่ โปรดรอให้เกมส์จบก่อน")
@@ -166,30 +389,40 @@ async def getAdmin(ctx):
 async def setCard(ctx, player: discord.Member, dataIn:str):
     dataIn1 = dataIn.upper()
     print(input)
-    cursor.execute("SELECT ID_Dis FROM player WHERE Admin = True")
-    statusAdmin = False
-    for row in cursor.fetchall():
-        if row.ID_Dis == str(ctx.author.id):
-            statusAdmin = True
-
+    statusAdmin = isAdmin(str(ctx.author.id))
     print(statusAdmin)
     if statusAdmin == True:
         tmpData = False
         st = str(player.id)
         cursor.execute("SELECT * FROM cardPlayer WHERE ID_Card = '%s'" %dataIn1)
         for row in cursor.fetchall():
-            print(row)
             tmpData = True
 
         print(st)
         print(dataIn1)
+        hp = 0
+        att = 0
+        soul = 0
+        cursor.execute("SELECT * FROM card WHERE CardID = '%s'" % dataIn1)
+        for row in cursor.fetchall():
+            soul = row.Soul
+            print(soul)
+        i = 0
+        while i < len(statusS):
+            if soul == statusS[i][0]:
+                hp = statusS[i][1]
+                att = statusS[i][2]
+                print(hp)
+                print(att)
+            i+=1
+
         if tmpData == False:
-            cursor.execute("INSERT INTO cardPlayer (ID_Dis, ID_Card) VALUES('%s', '%s')" %(st, dataIn1))
+            cursor.execute("INSERT INTO cardPlayer (ID_Dis, ID_Card, HP, Att) VALUES('%s', '%s', %d, %d)" %(st, dataIn1, hp, att))
             conn.commit()
             await ctx.send("add already")
             print("add already")
         else:
-            cursor.execute("UPDATE cardPlayer SET ID_Dis = '%s' WHERE ID_Card = '%s'" % (st, dataIn1))
+            cursor.execute("UPDATE cardPlayer SET ID_Dis = '%s', HP = %d, Att = %d WHERE ID_Card = '%s'" % (st, hp, att, dataIn1))
             conn.commit()
             await ctx.send("update already")
             print("update already")
@@ -242,7 +475,7 @@ async def arena_error(ctx, error):
         await ctx.send("Please make sure to mention/ping players (ie. <@688534433879556134>).")
 
 @client.command()
-async def set(ctx, input:str):
+async def add(ctx, input:str):
     global maxCard
     idDis = ' '
     nameCard = ' '
@@ -265,17 +498,17 @@ async def set(ctx, input:str):
         num += 1
     print(num)
 
+
+
     if(idDis == dis_id):
         if num > maxCard:
             await ctx.send('การ์ดของคุณครบ' + str(maxCard) + ' ใบแล้ว')
         elif battle == True:
-            c
+            await ctx.send('การ์ดของคุณถูกเพิ่มไปแล้ว')
         else:
             num += 1
             print(input)
-            cursor.execute("UPDATE cardPlayer SET Battle = True, Num_Battle = %d WHERE ID_Card = '%s'" % (num, input))
-            conn.commit()
-            print('Update Already')
+
             cursor.execute("SELECT * FROM card WHERE cardID = '%s'" % input)
             for row in cursor.fetchall():
                 nameCard = str(row.Name)
@@ -292,6 +525,25 @@ async def set(ctx, input:str):
             embed.add_field(name='Status', value=f"{'พร้อมใช้งาน'}")
             embed.set_image(url=url)
             await ctx.send(embed=embed)
+
+            hp = 0
+            att = 0
+            cursor.execute("SELECT * FROM card WHERE CardID = '%s'" % input)
+            for row in cursor.fetchall():
+                soul = row.Soul
+                print(soul)
+            i = 0
+            while i < len(statusS):
+                if soul == statusS[i][0]:
+                    hp = statusS[i][1]
+                    att = statusS[i][2]
+                    print(hp)
+                    print(att)
+                i += 1
+
+            cursor.execute("UPDATE cardPlayer SET Battle = True, Num_Battle = %d, HP = %d, Att = %d WHERE ID_Card = '%s'" % (num, hp, att, input))
+            conn.commit()
+            print('Update Already')
     else:
         print('Can not Update')
         await ctx.send("Can not Update")
@@ -307,8 +559,5 @@ async def playMode(ctx, input:int):
     cursor.execute("UPDATE cardPlayer SET Battle = False, Num_Battle = 0")
     conn.commit()
     await ctx.send('ล้างค่าสถานะเรียบร้อย')
-
-
-
 
 client.run(TOKEN, bot=True, reconnect=True)
